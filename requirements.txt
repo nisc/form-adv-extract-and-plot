@@ -8,8 +8,7 @@ PyYAML==6.0.2
 # Data visualization
 matplotlib==3.10.3
 
-# Web requests and automation
-requests==2.31.0
+# Web automation
 selenium==4.34.2
 webdriver-manager==4.0.2
 
