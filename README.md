@@ -65,20 +65,21 @@ When comparing multiple firms, individual charts are generated for each metric:
 
 ```
 form-adv-extract-and-plot/
-├── input/                    # ADV filing data CSV files
-├── output/
-│   ├── csvs/                 # Extracted data files
-│   └── plots/                # Generated plots
-├── docs/                     # Documentation and examples
-├── adv_extract.py            # Extract data from ADV files
-├── adv_plot.py               # Generate plots from extracted data
-├── adv_downloader.py         # SEC website download module
-├── test_performance.py       # Performance testing script
-├── adv_extract_settings.yaml # Main configuration
-├── adv_extract_firms.yaml    # Firm definitions and default values
-├── pyproject.toml            # Development tool configuration
-├── requirements.txt          # Python dependencies
-└── LICENSE                   # License
+├── src/                           # Python source code
+│   ├── adv_downloader.py          # SEC website download module
+│   ├── adv_extract.py             # Extract data from ADV files
+│   ├── adv_extract_perftest.py    # Performance testing script
+│   └── adv_plot.py                # Generate plots from extracted data
+├── input/                         # ADV filing data CSV files
+├── output/                        # Generated output files
+│   ├── csvs/                      # Extracted data files
+│   └── plots/                     # Generated plots
+├── docs/                          # Documentation and examples
+├── adv_extract_settings.yaml      # Main configuration
+├── adv_extract_firms.yaml         # Firm definitions and default values
+├── requirements.txt               # Python dependencies
+├── pyproject.toml                 # Project configuration
+└── run.sh                         # Bash script to run the pipeline
 ```
 
 ## Quick Start
@@ -111,32 +112,40 @@ form-adv-extract-and-plot/
 
 1. **Configure firms:** Edit `adv_extract_firms.yaml` to define the firms you want to analyze
 
-2. **Extract data:**
-   ```bash
-   python adv_extract.py
-   ```
+2. **Download and extract data:**
 
-   > **Note:** If no ADV filing data is found in the `input/` directory, the script will automatically offer to download the required files from the SEC website. The total download size is calculated automatically from the file descriptions (~1.4 GB). This includes:
-   > - 2024 monthly files (April-December)
-   > - 2024 Q1 updates
-   > - Historical files (RIA and ERA 2001-2023)
-   >
-   > You can also manually download historical Form ADV Part 1 filings from the [SEC FOIA Services](https://www.sec.gov/foia-services/frequently-requested-documents/form-adv-data) and extract the CSV files into the `input/` directory.
+**Option 1: Run the complete pipeline (Recommended)**
+```bash
+./run.sh
+```
+This bash script automatically:
+- Checks prerequisites and dependencies
+- Downloads SEC filing data (if not present)
+- Runs data extraction
+- Generates plots
+- Provides status updates throughout the process
+
+**Option 2: Run individual steps manually**
+
+   ```bash
+   python src/adv_extract.py
+   ```
+   > **Note:** The extractor will automatically download SEC filing data if no CSV files are found in the `input/` directory.
 
 3. **Generate plots:**
    ```bash
-   python adv_plot.py
+   python src/adv_plot.py
    ```
 
 4. **Test performance (optional):**
    ```bash
-   python test_performance.py
+   python src/adv_extract_perftest.py
    ```
 
 ## Output Files
 
 - **CSV files**: `output/csvs/adv_data_<firm>_<sec_id>_<crd_id>_<year>.csv`
-- **Plots**: `output/plots/adv_plot.png`
+- **Plots**: `output/plots/adv_plot_<firmname>.png` (single firm) or `output/plots/adv_plot_multi.png` (multiple firms)
 
 ## Configuration
 
