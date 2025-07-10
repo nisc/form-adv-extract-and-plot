@@ -142,7 +142,7 @@ This bash script automatically:
 ## Output Files
 
 - **CSV files**: `output/csvs/adv_data_<firm>_<sec_id>_<crd_id>_<year>.csv`
-- **Plots**: `output/plots/adv_plot.png`
+- **Plots**: `output/plots/adv_plot_<firmname>.png` (single firm) or `output/plots/adv_plot_multi.png` (multiple firms)
 
 ## Configuration
 
