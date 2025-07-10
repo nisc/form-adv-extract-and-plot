@@ -1,0 +1,57 @@
+# Configuration for ADV Extractor
+# Firms are loaded from adv_extract_firms.yaml and adv_extract_firms-*.yaml files
+
+# Column identifiers
+SEC_ID_COLUMN: 1D
+CRD_ID_COLUMN: 1E1
+
+# Matching strategy for finding firms
+# Options: "SEC_ONLY", "CRD_ONLY", "BOTH"
+MATCHING_STRATEGY: "BOTH"
+
+# Date columns that should not be treated as integers
+DATE_COLUMNS:
+  - DateSubmitted   # Date the filing was submitted
+  - Execution Date  # Date the filing was executed
+
+# Target columns to extract (order determines output CSV columns)
+TARGET_COLUMNS:
+  # "Item 5 Information About Your Advisory Business - Employees, Clients, and Compensation"
+  - 5A        # Total number of employees
+  - 5B1       # Number of investment adviser representatives (IP headcount)
+  # - 5B2     # Number of non-investment adviser representative employees
+  # - 5B3     # Number of clerical employees
+  # - 5B4     # Number of employees registered with a broker-dealer
+  # - 5B5     # Number of employees who are solicitors
+  # - 5B6     # Number of employees who are other
+  - 5C1       # Number of clients that are high net worth individuals
+  - 5C2       # Number of clients that are other individuals
+  - 5D1f      # Number of clients that are other investment advisers
+  # - 5D1g    # Number of clients that are insurance companies
+  # - 5D1h    # Number of clients that are pension and profit sharing plans
+  # - 5D1i    # Number of clients that are charitable organizations
+  # - 5D1j    # Number of clients that are corporations or other businesses
+  # - 5D1k    # Number of clients that are other
+  - 5D3f      # Regulatory assets under management
+  # - 5D3g    # Regulatory assets under management for insurance companies
+  # - 5D3h    # Regulatory assets under management for pension and profit sharing plans
+  # - 5D3i    # Regulatory assets under management for charitable organizations
+  # - 5D3j    # Regulatory assets under management for corporations or other businesses
+  # - 5D3k    # Regulatory assets under management for other
+  - 5F2a      # Total regulatory assets under management
+  - 5F2b      # Regulatory assets under management from non-US clients
+  - 5F2c      # Regulatory assets under management from US clients
+  - 5F2d      # Number of non-US clients
+  - 5F2e      # Regulatory assets under management from non-US clients
+  - 5F2f      # Number of US clients
+  - 5F3       # Regulatory assets under management from US clients
+# "Do you have custody of any advisory clients"
+  - 9A2a      # Regulatory assets under management from private funds
+  - 9A2b      # Number of private fund clients
+  - 9B2a      # Regulatory assets under management from other pooled investment vehicles
+  - 9B2b      # Number of other pooled investment vehicle clients
+
+# Data corrections for known errors in source files
+OVERWRITES:
+  "1738609":  # Filing ID for the March 30, 2023 filing
+    "Execution Date": "03/30/2023"  # Correct the execution date to match submission date
