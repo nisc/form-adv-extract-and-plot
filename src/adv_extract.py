@@ -23,9 +23,19 @@ CSV_OUTPUT_DIR = Path("output/csvs")
 # Create output directories if they don't exist
 CSV_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Global cache for configuration to avoid repeated loading
+_CONFIG_CACHE = None
+_ALL_FIRMS_CACHE = None
+
 
 def load_configuration():
     """Load configuration from YAML files."""
+    global _CONFIG_CACHE, _ALL_FIRMS_CACHE
+
+    # Return cached configuration if already loaded
+    if _CONFIG_CACHE is not None and _ALL_FIRMS_CACHE is not None:
+        return _CONFIG_CACHE, _ALL_FIRMS_CACHE
+
     # Load configuration from YAML file
     with open("adv_extract_settings.yaml", "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
@@ -48,6 +58,10 @@ def load_configuration():
                         print(f"Loaded additional firms from {firm_file}")
         except Exception as e:
             print(f"Warning: Could not load {firm_file}: {e}")
+
+    # Cache the results
+    _CONFIG_CACHE = config
+    _ALL_FIRMS_CACHE = all_firms
 
     return config, all_firms
 
