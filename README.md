@@ -64,17 +64,19 @@ When comparing multiple firms, individual charts are generated for each metric:
 
 ```
 form-adv-extract-and-plot/
-├── input/                    # ADV filing data CSV files
-├── output/
-│   ├── csvs/                 # Extracted data files
-│   └── plots/                # Generated plots
-├── docs/                     # Documentation and examples
-├── adv_extract.py            # Extract data from ADV files
-├── adv_plot.py               # Generate plots from extracted data
-├── test_performance.py       # Performance testing script
-├── adv_extract_settings.yaml # Main configuration
-├── adv_extract_firms.yaml    # Firm definitions and default values
-└── requirements.txt          # Python dependencies
+├── src/                           # Python source code
+│   ├── adv_extract.py             # Extract data from ADV files
+│   ├── adv_plot.py                # Generate plots from extracted data
+│   └── adv_extract_perftest.py    # Performance testing script
+├── input/                         # ADV filing data CSV files
+├── output/                        # Generated output files
+│   ├── csvs/                      # Extracted data files
+│   └── plots/                     # Generated plots
+├── docs/                          # Documentation and examples
+├── adv_extract_settings.yaml      # Main configuration
+├── adv_extract_firms.yaml         # Firm definitions and default values
+├── requirements.txt               # Python dependencies
+└── run.sh                         # Bash script to run the pipeline
 ```
 
 ## Quick Start
@@ -105,23 +107,36 @@ form-adv-extract-and-plot/
 
 ### Usage
 
+**Prerequisites:**
 1. **Download data:** Download historical Form ADV Part 1 filings from the [SEC FOIA Services](https://www.sec.gov/foia-services/frequently-requested-documents/form-adv-data) and extract the CSV files into the `input/` directory
 
 2. **Configure firms:** Edit `adv_extract_firms.yaml` to define the firms you want to analyze
 
+**Option 1: Run the complete pipeline (Recommended)**
+```bash
+./run.sh
+```
+This bash script automatically:
+- Checks prerequisites and dependencies
+- Runs the data extraction
+- Generates plots
+- Provides status updates throughout the process
+
+**Option 2: Run individual steps manually**
+
 3. **Extract data:**
    ```bash
-   python adv_extract.py
+   python src/adv_extract.py
    ```
 
 4. **Generate plots:**
    ```bash
-   python adv_plot.py
+   python src/adv_plot.py
    ```
 
 5. **Test performance (optional):**
    ```bash
-   python test_performance.py
+   python src/adv_extract_perftest.py
    ```
 
 ## Output Files

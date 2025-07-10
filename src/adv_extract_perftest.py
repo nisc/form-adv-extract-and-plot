@@ -6,7 +6,7 @@ This script automatically discovers and tests all Python scripts matching the pa
 get reliable performance measurements and provides detailed statistics.
 
 Usage:
-    python test_performance.py
+    python adv_extract_perftest.py
 
 The script will:
 1. Find all adv_extract*.py files in the current directory
@@ -22,10 +22,10 @@ import time
 
 
 def find_adv_extract_scripts() -> list:
-    """Find all adv_extract*.py scripts in the current directory.
+    """Find all adv_extract*.py scripts in the src directory.
 
     This function uses glob to find all Python files that start with 'adv_extract'
-    and end with '.py'. This allows testing of multiple variants like:
+    and end with '.py' in the src directory. This allows testing of multiple variants like:
     - adv_extract.py (main script)
     - adv_extract_v2.py (alternative version)
     - adv_extract_optimized.py (optimized version)
@@ -34,8 +34,8 @@ def find_adv_extract_scripts() -> list:
     Returns:
         List of script filenames, sorted alphabetically
     """
-    # Use glob to find all files matching the pattern
-    scripts = glob.glob("adv_extract*.py")
+    # Use glob to find all files matching the pattern in src/
+    scripts = glob.glob("src/adv_extract*.py")
     # Sort alphabetically for consistent ordering
     return sorted(scripts)
 
