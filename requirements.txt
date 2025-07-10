@@ -1,8 +1,20 @@
+# Core data processing and analysis
 pandas==2.3.1
-pyyaml==6.0.2
 numpy==2.3.1
+
+# Configuration and file handling
+PyYAML==6.0.2
+
+# Data visualization
 matplotlib==3.10.3
+
+# Web requests and automation
+requests==2.31.0
+selenium==4.34.2
+webdriver-manager==4.0.2
+
+# Development tools and code quality
 black==25.1.0
-pre-commit==4.2.0
-isort==6.0.1
 flake8==7.3.0
+isort==6.0.1
+pre-commit==4.2.0

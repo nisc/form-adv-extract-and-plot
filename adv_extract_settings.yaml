@@ -51,7 +51,43 @@ TARGET_COLUMNS:
   - 9B2a      # Regulatory assets under management from other pooled investment vehicles
   - 9B2b      # Number of other pooled investment vehicle clients
 
-# Data corrections for known errors in source files
-OVERWRITES:
-  "1738609":  # Filing ID for the March 30, 2023 filing
-    "Execution Date": "03/30/2023"  # Correct the execution date to match submission date
+# Download settings
+DOWNLOAD_DELAY_SECONDS: 0.5  # Delay between downloads to avoid throttling
+BROWSER_SESSION_WAIT_SECONDS: 1.0  # Wait time after establishing browser session
+BROWSER_DOWNLOAD_WAIT_SECONDS: 0.5  # Wait time after attempting download
+MAX_RETRIES: 3  # Number of retry attempts for downloads
+
+# Timeout settings (in seconds)
+PAGE_LOAD_TIMEOUT: 120     # Maximum time to wait for page to load
+DOWNLOAD_TIMEOUT: 1800     # Maximum time to wait for download to complete (30 min for large files)
+SCRIPT_TIMEOUT: 60         # Maximum time to wait for JavaScript execution
+
+# Download URLs and file sizes for automatic data acquisition
+DOWNLOAD_URLS:
+  2024_monthly:
+    - url: "https://www.sec.gov/files/adv-filing-data-20241201-20241231.zip"
+      description: "December 2024 (4.8 MB)"
+    - url: "https://www.sec.gov/files/adv-filing-data-20241101-20241130.zip"
+      description: "November 2024 (5.3 MB)"
+    - url: "https://www.sec.gov/files/adv_filing_data_20241001_20241031.zip"
+      description: "October 2024 (7.8 MB)"
+    - url: "https://www.sec.gov/adv-filing-data-20240901-20240930.zip"
+      description: "September 2024 (6.6 MB)"
+    - url: "https://www.sec.gov/files/adv-filing-data-20240801-20240831.zip"
+      description: "August 2024 (7.3 MB)"
+    - url: "https://www.sec.gov/files/adv-filing-data-20240701-20240731.zip"
+      description: "July 2024 (7.5 MB)"
+    - url: "https://www.sec.gov/files/adv-filing-data-20240601-20240630.zip"
+      description: "June 2024 (7.7 MB)"
+    - url: "https://www.sec.gov/adv-filing-data-20240501-20240531.zip"
+      description: "May 2024 (8.2 MB)"
+    - url: "https://www.sec.gov/files/adv-filing-data-20040401-20240430.zip"
+      description: "April 2024 (7.4 MB)"
+  2024_q1:
+    - url: "https://www.sec.gov/files/form-adv-updates-01012024-03312024.zip"
+      description: "Form ADV Updates from January 1, 2024 to March 31, 2024 (43 MB)"
+  historical:
+    - url: "https://www.sec.gov/foia/docs/adv/form-adv-complete-ria-01012001-120312023.zip"
+      description: "RIA 2001-2023 (1.2 GB)"
+    - url: "https://www.sec.gov/files/form-adv-complete-era-01012001-120312023.zip"
+      description: "ERA 2001-2023 (68 MB)"

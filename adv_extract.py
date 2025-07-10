@@ -7,56 +7,72 @@ and can handle data overwrites and default values for missing fiscal years.
 """
 
 import glob
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import pandas as pd
+import pandas as pd  # type: ignore
 import yaml
 
+from adv_downloader import ADVDownloader
+
+# Define input and output directories
+INPUT_DIR = Path("input")
+CSV_OUTPUT_DIR = Path("output/csvs")
+
 # Create output directories if they don't exist
-OUTPUT_DIR = Path("output")
-CSV_OUTPUT_DIR = OUTPUT_DIR / "csvs"
 CSV_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Load configuration from YAML file
-with open("adv_extract_settings.yaml", "r", encoding="utf-8") as f:
-    config = yaml.safe_load(f)
 
-# Load firms from main firms file
-with open("adv_extract_firms.yaml", "r", encoding="utf-8") as f:
-    firms_config = yaml.safe_load(f)
-    all_firms = firms_config["FIRMS"]
+def load_configuration():
+    """Load configuration from YAML files."""
+    # Load configuration from YAML file
+    with open("adv_extract_settings.yaml", "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
 
-# Load additional firms from adv_extract_firms-*.yaml files
-# This allows for modular firm configuration management
-additional_firm_files = glob.glob("adv_extract_firms-*.yaml")
-for firm_file in additional_firm_files:
-    try:
-        with open(firm_file, "r", encoding="utf-8") as f:
-            additional_firms = yaml.safe_load(f)
-            if "FIRMS" in additional_firms:
-                all_firms.extend(additional_firms["FIRMS"])
-                print(f"Loaded additional firms from {firm_file}")
-    except Exception as e:
-        print(f"Warning: Could not load {firm_file}: {e}")
+    # Load firms and overwrites from main firms file
+    with open("adv_extract_firms.yaml", "r", encoding="utf-8") as f:
+        firms_config = yaml.safe_load(f)
+        all_firms = firms_config["FIRMS"]
+        # Load OVERWRITES if present
+        if "OVERWRITES" in firms_config:
+            config["OVERWRITES"] = firms_config["OVERWRITES"]
 
-# Extract configuration values and convert FIRMS list in one step
-# This unpacks all configuration into individual variables for easier access
-SEC_ID_COLUMN, CRD_ID_COLUMN, MATCHING_STRATEGY, DATE_COLUMNS, TARGET_COLUMNS, FIRM_IDS, OVERWRITES = (
-    config["SEC_ID_COLUMN"],
-    config["CRD_ID_COLUMN"],
-    config["MATCHING_STRATEGY"],  # Options: "SEC_ONLY", "CRD_ONLY", "BOTH"
-    config["DATE_COLUMNS"],
-    config["TARGET_COLUMNS"],
-    [(f["name"], f["sec_id"], f["crd_id"], f["default_values"]) for f in all_firms],
-    config.get("OVERWRITES", {}),  # Get overwrites with empty dict as default
-)
+    # Load additional firms from adv_extract_firms-*.yaml files
+    for firm_file in glob.glob("adv_extract_firms-*.yaml"):
+        try:
+            with open(firm_file, "r", encoding="utf-8") as f:
+                if additional_firms := yaml.safe_load(f):
+                    if "FIRMS" in additional_firms:
+                        all_firms.extend(additional_firms["FIRMS"])
+                        print(f"Loaded additional firms from {firm_file}")
+        except Exception as e:
+            print(f"Warning: Could not load {firm_file}: {e}")
 
-# Combine date columns with target columns for processing
-ALL_COLUMNS = DATE_COLUMNS + TARGET_COLUMNS
+    return config, all_firms
 
-# Pre-compile the file pattern
-FILE_PATTERN = "IA_ADV_Base_*.csv"
+
+def check_and_download_files() -> list[Path]:
+    """Check if input files exist, download if not."""
+    csv_files = list(INPUT_DIR.rglob("IA_ADV_Base_*.csv"))
+
+    if not csv_files:
+        # Load configuration to get download URLs
+        config, _ = load_configuration()
+
+        # Use the consolidated downloader with config
+        downloader = ADVDownloader(INPUT_DIR, config)
+        if not downloader.download_and_extract_all_files(config.get("DOWNLOAD_URLS", {})):
+            sys.exit(1)
+
+        # Check again after download attempt
+        csv_files = list(INPUT_DIR.rglob("IA_ADV_Base_*.csv"))
+        if not csv_files:
+            print(f"Still no CSV files found after download. Please check the {INPUT_DIR} directory.")
+            sys.exit(1)
+
+    print(f"Found {len(csv_files)} ADV filing data CSV files.")
+    return csv_files
 
 
 def process_files(
@@ -76,12 +92,28 @@ def process_files(
     Returns:
         DataFrame with filing data, indexed by fiscal year
     """
+    # Load configuration
+    config, all_firms = load_configuration()
+
+    # Extract configuration values
+    SEC_ID_COLUMN = config["SEC_ID_COLUMN"]
+    CRD_ID_COLUMN = config["CRD_ID_COLUMN"]
+    MATCHING_STRATEGY = config["MATCHING_STRATEGY"]
+    DATE_COLUMNS = config["DATE_COLUMNS"]
+    TARGET_COLUMNS = config["TARGET_COLUMNS"]
+    OVERWRITES = config["OVERWRITES"]
+
+    # Combine date columns with target columns for processing
+    ALL_COLUMNS = DATE_COLUMNS + TARGET_COLUMNS
+
+    # Pre-compile the file pattern
+    FILE_PATTERN = "IA_ADV_Base_*.csv"
+
     # Get all CSV files recursively from input directory
-    data_dir = Path("input")
-    csv_files = list(data_dir.rglob(FILE_PATTERN))
+    csv_files = list(INPUT_DIR.rglob(FILE_PATTERN))
 
     if not csv_files:
-        print(f"No CSV files found in {data_dir} or its subdirectories")
+        print(f"No CSV files found in {INPUT_DIR} or its subdirectories")
         return pd.DataFrame()
 
     # Process all files and collect data
@@ -224,10 +256,22 @@ def main():
     2. Processes each firm's data using the specified matching strategy
     3. Outputs results to CSV files in the output/csvs directory
     """
+    # Load configuration
+    config, all_firms = load_configuration()
+
+    # Extract configuration values
+    MATCHING_STRATEGY = config["MATCHING_STRATEGY"]
+
+    # Load firms from main firms file
+    FIRM_IDS = [(f["name"], f["sec_id"], f["crd_id"], f["default_values"]) for f in all_firms]
+
     strategy_str = {"SEC_ONLY": "SEC ID", "CRD_ONLY": "CRD ID", "BOTH": "SEC ID and CRD ID"}[
         MATCHING_STRATEGY
     ]
     print(f"\nUsing matching strategy: {strategy_str}")
+
+    # Check and download files if needed (only once at the beginning)
+    check_and_download_files()
 
     # Process each configured firm
     for firm_name, sec_id, crd_id, default_values in FIRM_IDS:

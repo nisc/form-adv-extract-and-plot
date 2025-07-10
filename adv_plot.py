@@ -499,10 +499,7 @@ def load_and_plot_data(start_year: int = START_YEAR):
                     add_yoy_growth(ax, plot_years, plot_values)
 
                 # Set custom title with firm name
-                if company_count == 1:
-                    ax.set_title(f"{config['title']} ({firm_name})", fontsize=14, pad=15)
-                else:
-                    ax.set_title(config["title"], fontsize=14, pad=15)
+                ax.set_title(f"{config['title']} ({firm_name})", fontsize=14, pad=15)
 
     # Handle case where no data was found
     if not all_years:

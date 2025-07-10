@@ -9,8 +9,8 @@
 *.swp
 
 # Data
-input/
-output/
+input*/
+output*/
 
 # Custom user config files
 adv_extract_firms-*.yaml

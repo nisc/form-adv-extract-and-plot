@@ -4,11 +4,16 @@ Extract and plot SEC Form ADV Part 1 filing data for investment advisory firms.
 
 ## Overview
 
-This tool processes historical SEC Form ADV Part 1 filings to extract key metrics including employee counts, client demographics, regulatory assets under management (RAUM), and custody information. It generates comprehensive visualizations for both single-firm analysis and multi-firm comparisons.
+This tool processes historical SEC Form ADV Part 1 filings to extract key metrics including employee counts, client demographics, regulatory assets under management (RAUM), and custody information. It generates detailed visualizations for both single-firm analysis and multi-firm comparisons.
 
-## Data & Charts
+## Features
 
-### Data Extracted
+- **20+ metrics**: Employee counts, RAUM, client demographics (easily extendable via YAML)
+- **Charting**: Combo charts for single firms, individual charts for firm comparisons
+- **Auto-download**: SEC filing data
+- **Flexible matching**: SEC ID, CRD ID, or both
+
+## Data Extracted
 
 | Category | Field | Description | Form Field |
 |----------|-------|-------------|------------|
@@ -34,15 +39,11 @@ This tool processes historical SEC Form ADV Part 1 filings to extract key metric
 
 > **Note:** The set of extracted fields can be easily expanded by editing the configuration file (`adv_extract_settings.yaml`).
 
-### Charts Produced (non-exhaustive)
+## Charts Produced
 
 - **RAUM Trends**: Total and normalized regulatory assets under management
 - **Headcount Metrics**: Total employees and investment professional counts
 - **Per-Employee Ratios**: RAUM per employee and per investment professional
-
-### Current Limitations
-
-- The latest filing year is not extracted automatically, as it is only available in PDF format. This data must be entered manually in `adv_extract_firms.yaml`. (A PDF parser is planned for future releases.)
 
 ## Example Output
 
@@ -71,10 +72,13 @@ form-adv-extract-and-plot/
 ├── docs/                     # Documentation and examples
 ├── adv_extract.py            # Extract data from ADV files
 ├── adv_plot.py               # Generate plots from extracted data
+├── adv_downloader.py         # SEC website download module
 ├── test_performance.py       # Performance testing script
 ├── adv_extract_settings.yaml # Main configuration
 ├── adv_extract_firms.yaml    # Firm definitions and default values
-└── requirements.txt          # Python dependencies
+├── pyproject.toml            # Development tool configuration
+├── requirements.txt          # Python dependencies
+└── LICENSE                   # License
 ```
 
 ## Quick Start
@@ -105,21 +109,26 @@ form-adv-extract-and-plot/
 
 ### Usage
 
-1. **Download data:** Download historical Form ADV Part 1 filings from the [SEC FOIA Services](https://www.sec.gov/foia-services/frequently-requested-documents/form-adv-data) and extract the CSV files into the `input/` directory
+1. **Configure firms:** Edit `adv_extract_firms.yaml` to define the firms you want to analyze
 
-2. **Configure firms:** Edit `adv_extract_firms.yaml` to define the firms you want to analyze
-
-3. **Extract data:**
+2. **Extract data:**
    ```bash
    python adv_extract.py
    ```
 
-4. **Generate plots:**
+   > **Note:** If no ADV filing data is found in the `input/` directory, the script will automatically offer to download the required files from the SEC website. The total download size is calculated automatically from the file descriptions (~1.4 GB). This includes:
+   > - 2024 monthly files (April-December)
+   > - 2024 Q1 updates
+   > - Historical files (RIA and ERA 2001-2023)
+   >
+   > You can also manually download historical Form ADV Part 1 filings from the [SEC FOIA Services](https://www.sec.gov/foia-services/frequently-requested-documents/form-adv-data) and extract the CSV files into the `input/` directory.
+
+3. **Generate plots:**
    ```bash
    python adv_plot.py
    ```
 
-5. **Test performance (optional):**
+4. **Test performance (optional):**
    ```bash
    python test_performance.py
    ```
@@ -147,9 +156,19 @@ FIRMS:
         # ... other fields
 ```
 
+> **Note:** Data corrections for known errors in source files (the `OVERWRITES` block) are located at the end of `adv_extract_firms.yaml`.
+
 ### Settings Configuration (`adv_extract_settings.yaml`)
 
-Configure extraction parameters, target columns, and matching strategies.
+Configure extraction parameters, target columns, and matching strategies:
+
+- **Matching Strategy**: Choose between SEC ID only, CRD ID only, or both
+- **Target Columns**: Define which Form ADV fields to extract
+- **Download URLs**: Configure automatic data acquisition sources
+
+## Current Limitations
+
+- The latest filing year is not extracted automatically, as it is only available in PDF format. This data must be entered manually in `adv_extract_firms.yaml`. (A PDF parser is planned for future releases.)
 
 ## License
 

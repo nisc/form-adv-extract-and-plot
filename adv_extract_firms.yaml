@@ -224,3 +224,8 @@ FIRMS:
         9A2b: 12
         9B2a: 47286464981
         9B2b: 12
+
+# Data corrections for known errors in source files
+OVERWRITES:
+  "1738609":  # Filing ID for the March 30, 2023 filing
+    "Execution Date": "03/30/2023"  # Correct the execution date to match submission date

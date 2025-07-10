@@ -90,7 +90,7 @@ def run_test(script_name: str, num_runs: int = 3) -> list:
 def print_results(script_name: str, times: list):
     """Print performance test results with detailed statistics.
 
-    This function calculates and displays comprehensive performance statistics
+    This function calculates and displays detailed performance statistics
     for a script, including mean, standard deviation, minimum, and maximum
     execution times. This helps identify both average performance and variability.
 
