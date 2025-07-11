@@ -14,6 +14,7 @@ The script supports multiple firms and can generate different plot types based o
 import glob
 import os
 import platform
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -24,9 +25,10 @@ from matplotlib.ticker import FuncFormatter
 
 # Configuration constants
 START_YEAR = 2017  # First year to include in plots
+PLOT_FOLDER = "output/plots"  # Output directory for generated plots
 
 # Create output directories if they don't exist
-Path("output/plots").mkdir(parents=True, exist_ok=True)
+Path(PLOT_FOLDER).mkdir(parents=True, exist_ok=True)
 
 # Plot selection switch - set to True to include each plot
 # This allows selective plotting to focus on specific metrics
@@ -187,6 +189,93 @@ def plot_combo_chart(ax, years, primary_data, secondary_data, primary_config, se
     return ax2, line1[0], line2[0]
 
 
+def get_user_firm_selection(csv_files):
+    """Prompt user to select which firms to plot when multiple CSV files are found.
+
+    Args:
+        csv_files: List of CSV file paths
+
+    Returns:
+        List of selected CSV file paths
+    """
+    if len(csv_files) <= 1:
+        return csv_files
+
+    print(f"\nFound {len(csv_files)} firm data files:")
+
+    # Extract firm names and create numbered menu
+    firm_names = []
+    for i, file_path in enumerate(csv_files, 1):
+        firm_name = os.path.basename(file_path).split("_")[2]
+        firm_names.append(firm_name)
+        print(f"{i}. {firm_name}")
+
+    print("\nEnter the numbers of firms to plot (e.g., 1,2,3 or 1 2 3):")
+
+    while True:
+        try:
+            user_input = input("Selection: ").strip()
+            if not user_input:
+                print("Please enter at least one number.")
+                continue
+
+            # Parse user input - handle commas, spaces, or mixed separators
+            selected_indices = []
+            for part in user_input.replace(",", " ").split():
+                try:
+                    index = int(part.strip())
+                    if 1 <= index <= len(csv_files):
+                        selected_indices.append(index - 1)  # Convert to 0-based index
+                    else:
+                        print(
+                            f"Invalid selection: {index}. "
+                            f"Please enter numbers between 1 and {len(csv_files)}."
+                        )
+                        continue
+                except ValueError:
+                    print(f"Invalid input: '{part}'. Please enter valid numbers.")
+                    continue
+
+            if not selected_indices:
+                print("No valid selections made. Please try again.")
+                continue
+
+            # Return selected files
+            selected_files = [csv_files[i] for i in selected_indices]
+            selected_names = [firm_names[i] for i in selected_indices]
+
+            print(f"\nSelected firms: {', '.join(selected_names)}")
+            return selected_files
+
+        except KeyboardInterrupt:
+            print("\nSelection cancelled.")
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error processing selection: {e}")
+            continue
+
+
+def get_next_plot_filename(base_pattern, folder):
+    """Find the next available filename with incrementing counter in the given folder.
+    base_pattern: e.g., 'adv_plot_all_{:03d}.png' or 'adv_plot_Voleon_{:03d}.png'
+    Returns the next available filename (not overwriting any existing file).
+    """
+    existing_files = os.listdir(folder)
+    regex = re.compile(base_pattern.replace("{:03d}", r"(\d{3})"))
+    max_num = 0
+    for fname in existing_files:
+        m = regex.fullmatch(fname)
+        if m:
+            try:
+                num = int(m.group(1))
+                if num > max_num:
+                    max_num = num
+            except Exception:
+                continue
+    next_num = max_num + 1
+    return os.path.join(folder, base_pattern.format(next_num))
+
+
 def load_and_plot_data(start_year: int = START_YEAR):
     """Load AUM and Headcount data from CSV files and create plots.
 
@@ -201,22 +290,26 @@ def load_and_plot_data(start_year: int = START_YEAR):
     """
     # Get all CSV files from output/csvs directory
     output_dir = "output/csvs"
-    csv_files = sorted(glob.glob(os.path.join(output_dir, "adv_data_*.csv")))
+    all_csv_files = sorted(glob.glob(os.path.join(output_dir, "adv_data_*.csv")))
 
-    if not csv_files:
+    if not all_csv_files:
         print("No CSV files found in output/csvs directory")
         sys.exit(1)
+
+    # Get user selection for which firms to plot
+    csv_files = get_user_firm_selection(all_csv_files)
 
     # Count companies to determine output filename and plot selection
     company_count = len(csv_files)
 
     # Determine output filename based on number of firms
     if company_count == 1:
-        # Extract firm name from the single CSV file
         firm_name = os.path.basename(csv_files[0]).split("_")[2]
-        output_file = f"output/plots/adv_plot_{firm_name}.png"
+        base_pattern = f"adv_plot_{firm_name}_{{:03d}}.png"
+        output_file = get_next_plot_filename(base_pattern, PLOT_FOLDER)
     else:
-        output_file = "output/plots/adv_plot_multi.png"
+        base_pattern = "adv_plot_multi_{:03d}.png"
+        output_file = get_next_plot_filename(base_pattern, PLOT_FOLDER)
 
     # Create figure with subplots based on selection
     enabled_plots = [name for name, enabled in PLOT_SELECTION.items() if enabled]
