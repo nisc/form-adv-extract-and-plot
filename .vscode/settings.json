@@ -7,8 +7,16 @@
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
   },
+  "isort.args": [
+    "--profile",
+    "black"
+  ],
   "black-formatter.args": [],
   "flake8.args": [
     "--max-line-length=110"
