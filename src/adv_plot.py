@@ -390,6 +390,10 @@ def load_and_plot_data(start_year: int = START_YEAR):
     min_height = 5
     plot_height = max(3.5, min_height / num_plots)
 
+    # For single company charts, increase chart area height
+    if company_count == 1:
+        plot_height *= 1.2
+
     # Adjust margins based on number of plots
     if num_plots <= 2:
         # More generous margins for fewer plots
@@ -605,13 +609,21 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 # Create legend with all three series in specified order
                 lines = [line1, line3[0], line2]
                 labels = [line.get_label() for line in lines]
-                ax.legend(lines, labels, fontsize=10, loc="upper center", ncol=3)
-
+                ax.legend(
+                    lines,
+                    labels,
+                    fontsize=10,
+                    loc="lower center",
+                    ncol=3,
+                    bbox_to_anchor=(0.5, 1.0),
+                    borderaxespad=0.0,
+                    frameon=False,
+                )
                 # Set custom title: only include firm name if single company
                 title = "Form ADV Headcount (Total vs. Investment Professionals)"
                 if company_count == 1:
                     title = f"{firm_name} {title}"
-                ax.set_title(title, fontsize=14, pad=15)
+                ax.set_title(title, fontsize=14, pad=21)
 
             elif plot_name == "raum_combo":
                 # Special handling for combined RAUM chart with dual y-axes
@@ -678,14 +690,22 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 # Create legend with all three series
                 lines = [line1, line3[0], line2]
                 labels = [line.get_label() for line in lines]
-                ax.legend(lines, labels, fontsize=10, loc="upper center", ncol=3)
-
+                ax.legend(
+                    lines,
+                    labels,
+                    fontsize=10,
+                    loc="lower center",
+                    ncol=3,
+                    bbox_to_anchor=(0.5, 1.0),
+                    borderaxespad=0.0,
+                    frameon=False,
+                )
                 # Set custom title: only include firm name if single company
                 prefix = f"{firm_name} " if company_count == 1 else ""
                 ax.set_title(
                     f"{prefix}Regulatory AUM (Total, per Employee, per Investment Professional)",
                     fontsize=14,
-                    pad=15,
+                    pad=21,
                 )
 
             else:
