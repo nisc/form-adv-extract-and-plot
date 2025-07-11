@@ -554,11 +554,9 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 if company_count == 1:
                     add_yoy_growth(ax, plot_years, plot_values)
 
-                # Set custom title with firm name
-                if company_count == 1:
-                    ax.set_title(f"{firm_name} {config['title']}", fontsize=14, pad=15)
-                else:
-                    ax.set_title(config["title"], fontsize=14, pad=15)
+                # Set custom title: only include firm name if single company
+                title = f"{firm_name} {config['title']}" if company_count == 1 else config["title"]
+                ax.set_title(title, fontsize=14, pad=15)
 
             elif plot_name == "hc_combo":
                 # Special handling for combined headcount chart with dual y-axes
@@ -609,12 +607,11 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 labels = [line.get_label() for line in lines]
                 ax.legend(lines, labels, fontsize=10, loc="upper center", ncol=3)
 
-                # Set custom title with firm name
-                ax.set_title(
-                    f"{firm_name} Form ADV Headcount (Total vs. Investment Professionals)",
-                    fontsize=14,
-                    pad=15,
-                )
+                # Set custom title: only include firm name if single company
+                title = "Form ADV Headcount (Total vs. Investment Professionals)"
+                if company_count == 1:
+                    title = f"{firm_name} {title}"
+                ax.set_title(title, fontsize=14, pad=15)
 
             elif plot_name == "raum_combo":
                 # Special handling for combined RAUM chart with dual y-axes
@@ -683,9 +680,10 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 labels = [line.get_label() for line in lines]
                 ax.legend(lines, labels, fontsize=10, loc="upper center", ncol=3)
 
-                # Set custom title with firm name
+                # Set custom title: only include firm name if single company
+                prefix = f"{firm_name} " if company_count == 1 else ""
                 ax.set_title(
-                    f"{firm_name} Regulatory AUM (Total, per Employee, per Investment Professional)",
+                    f"{prefix}Regulatory AUM (Total, per Employee, per Investment Professional)",
                     fontsize=14,
                     pad=15,
                 )
@@ -704,8 +702,9 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 if company_count == 1:
                     add_yoy_growth(ax, plot_years, plot_values)
 
-                # Set custom title with firm name
-                ax.set_title(f"{firm_name} {config['title']}", fontsize=14, pad=15)
+                # Set custom title: include firm name if single company
+                title = f"{firm_name} {config['title']}" if company_count == 1 else config["title"]
+                ax.set_title(title, fontsize=14, pad=15)
 
     # Handle case where no data was found
     if not all_years:
