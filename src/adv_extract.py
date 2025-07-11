@@ -289,6 +289,30 @@ def main():
 
     # Process each configured firm
     for firm_name, sec_id, crd_id, default_values in FIRM_IDS:
+        # Use max year from default_values as most recent year if available, else set to None
+        most_recent_year = None
+        if default_values:
+            try:
+                most_recent_year = max(int(y) for y in default_values.keys())
+            except Exception:
+                pass
+        if most_recent_year is not None:
+            filename = (
+                "adv_data_"
+                + str(firm_name)
+                + "_"
+                + str(sec_id)
+                + "_"
+                + str(crd_id)
+                + "_"
+                + str(most_recent_year)
+                + ".csv"
+            )
+            output_file = CSV_OUTPUT_DIR / filename
+            if output_file.exists():
+                print(f"Skipping {firm_name} (output {output_file.name} already exists)")
+                continue
+
         print(f"\n{'=' * 100}\n\nProcessing {firm_name} (SEC_ID {sec_id} and CRD_ID {crd_id})\n")
 
         # Process files and get DataFrame
