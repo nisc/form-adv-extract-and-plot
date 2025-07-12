@@ -18,10 +18,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import pandas as pd  # type: ignore
+from matplotlib.axes import Axes
 from matplotlib.ticker import FuncFormatter
 
 # Configuration constants
@@ -32,7 +34,6 @@ PLOT_FOLDER = "output/plots"  # Output directory for generated plots
 Path(PLOT_FOLDER).mkdir(parents=True, exist_ok=True)
 
 # Plot selection switch - set to True to include each plot
-# This allows selective plotting to focus on specific metrics
 PLOT_SELECTION = {
     "raum_total": True,  # Total Regulatory AUM
     "raum_normalized": True,  # Normalized Regulatory AUM
@@ -45,8 +46,11 @@ PLOT_SELECTION = {
     "raum_per_ip": True,  # RAUM per Investment Professional
 }
 
+# Plot types that use combo charts (dual y-axes)
+COMBO_PLOTS = {"hc_combo", "raum_combo"}
 
-def calculate_annual_averages(current_values, previous_values):
+
+def calculate_annual_averages(current_values: pd.Series, previous_values: pd.Series) -> pd.Series:
     """Calculate average between current and previous year values.
 
     This function computes the average of current and previous year values,
@@ -63,7 +67,7 @@ def calculate_annual_averages(current_values, previous_values):
     return (current_values + previous_values) / 2
 
 
-def calculate_yoy_growth(values):
+def calculate_yoy_growth(values: pd.Series) -> pd.Series:
     """Calculate year-over-year growth percentage.
 
     This function computes the percentage change from the previous year,
@@ -78,21 +82,25 @@ def calculate_yoy_growth(values):
     return ((values - values.shift(1)) / values.shift(1)) * 100
 
 
-def add_data_labels(ax, years, values, label_format, offset=(0, 10), fontsize=7):
+def add_data_labels(
+    ax: Axes,
+    years: pd.Series,
+    values: pd.Series,
+    label_format: Callable,
+    offset: Tuple[int, int] = (0, 10),
+    fontsize: int = 7,
+) -> None:
     """Add data labels to a plot with white outline for readability.
 
     Always positions labels above the data points.
     """
     for x, y in zip(years, values):
         if pd.notna(y):
-            # Always position labels above the series
-            label_offset = (offset[0], 6)
-
             txt = ax.annotate(
                 label_format(y),
                 (x, y),
                 textcoords="offset points",
-                xytext=label_offset,
+                xytext=(offset[0], 6),
                 ha="center",
                 fontsize=fontsize,
                 zorder=20,
@@ -105,7 +113,9 @@ def add_data_labels(ax, years, values, label_format, offset=(0, 10), fontsize=7)
             )
 
 
-def add_yoy_growth(ax, years, values, offset=(0, -15), fontsize=6):
+def add_yoy_growth(
+    ax: Axes, years: pd.Series, values: pd.Series, offset: Tuple[int, int] = (0, -15), fontsize: int = 6
+) -> None:
     """Add year-over-year growth annotations with white outline for readability.
 
     Always positions growth labels below the data points.
@@ -113,15 +123,11 @@ def add_yoy_growth(ax, years, values, offset=(0, -15), fontsize=6):
     yoy_growth = calculate_yoy_growth(values)
     for i, (x, y, growth) in enumerate(zip(years, values, yoy_growth)):
         if pd.notna(y) and pd.notna(growth) and i > 0:  # Skip first year (no growth)
-            # Always position growth labels below the series
-            growth_offset = (offset[0], -11)
-
-            growth_text = f"({growth:+.1f}%)"
             txt = ax.annotate(
-                growth_text,
+                f"({growth:+.1f}%)",
                 (x, y),
                 textcoords="offset points",
-                xytext=growth_offset,
+                xytext=(offset[0], -11),
                 ha="center",
                 fontsize=fontsize,
                 color="gray",
@@ -137,8 +143,14 @@ def add_yoy_growth(ax, years, values, offset=(0, -15), fontsize=6):
 
 
 def plot_combo_chart(
-    ax, years, primary_data, secondary_data, primary_config, secondary_config, secondary_years=None
-):
+    ax: Axes,
+    years: pd.Series,
+    primary_data: pd.Series,
+    secondary_data: pd.Series,
+    primary_config: Dict[str, Any],
+    secondary_config: Dict[str, Any],
+    secondary_years: Optional[pd.Series] = None,
+) -> Tuple[Axes, Any, Any]:
     """Plot a combo chart with dual y-axes.
 
     This function creates a chart with two y-axes, allowing visualization of
@@ -176,29 +188,24 @@ def plot_combo_chart(
         zorder=5,
     )
 
-    # Add data labels to primary series only (secondary series handled in main loop)
+    # Add data labels to primary series only
     add_data_labels(ax, years, primary_data, primary_config["label_format"])
 
-    # Adjust secondary y-axis range to reduce overlap with primary axis
+    # Adjust secondary y-axis range to reduce overlap
     secondary_range = ax2.get_ylim()
-
-    # Scale secondary axis to use a different range that reduces overlap
     secondary_span = secondary_range[1] - secondary_range[0]
-
-    # Use a scaling factor to separate the ranges
-    scale_factor = 0.8  # Adjust this to control separation
+    scale_factor = 0.8
     new_secondary_min = secondary_range[0] - (secondary_span * scale_factor * 0.1)
     new_secondary_max = secondary_range[1] + (secondary_span * scale_factor * 0.1)
-
     ax2.set_ylim(new_secondary_min, new_secondary_max)
 
-    # Hide tick labels and ticks on secondary y-axis (right side)
+    # Hide tick labels and ticks on secondary y-axis
     ax2.tick_params(axis="y", labelright=False, right=False)
 
     return ax2, line1[0], line2[0]
 
 
-def get_user_firm_selection(csv_files):
+def get_user_firm_selection(csv_files: List[str]) -> List[str]:
     """Prompt user to select which firms to plot when multiple CSV files are found.
 
     Args:
@@ -211,15 +218,13 @@ def get_user_firm_selection(csv_files):
         return csv_files
 
     print(f"\nFound {len(csv_files)} firm data files:")
-
-    # Extract firm names and create numbered menu
     firm_names = []
     for i, file_path in enumerate(csv_files, 1):
         firm_name = os.path.basename(file_path).split("_")[2]
         firm_names.append(firm_name)
         print(f"{i}. {firm_name}")
 
-    print("\nEnter the numbers of firms to plot (e.g., 1,2,3 or 1 2 3 or all or 2-4,7-8,9):")
+    print('\nEnter the numbers of firms to plot (e.g. "all" or "2-4, 6, 8-9"):')
 
     while True:
         try:
@@ -243,7 +248,7 @@ def get_user_firm_selection(csv_files):
                 if not part:
                     continue
 
-                # Handle range format (e.g., "2-4")
+                # Handle range format
                 if "-" in part:
                     try:
                         start, end = part.split("-", 1)
@@ -261,8 +266,7 @@ def get_user_firm_selection(csv_files):
                                     selected_indices.append(idx)
                         else:
                             print(
-                                f"Invalid range: {part}. "
-                                f"Please enter numbers between 1 and {len(csv_files)}."
+                                f"Invalid range: {part}. Please enter numbers between 1 and {len(csv_files)}."
                             )
                             continue
                     except ValueError:
@@ -293,7 +297,6 @@ def get_user_firm_selection(csv_files):
             # Return selected files
             selected_files = [csv_files[i] for i in selected_indices]
             selected_names = [firm_names[i] for i in selected_indices]
-
             print(f"\nSelected firms: {', '.join(selected_names)}")
             return selected_files
 
@@ -305,7 +308,7 @@ def get_user_firm_selection(csv_files):
             continue
 
 
-def get_next_plot_filename(base_pattern, folder):
+def get_next_plot_filename(base_pattern: str, folder: str) -> str:
     """Find the next available filename with incrementing counter in the given folder.
 
     Args:
@@ -332,7 +335,7 @@ def get_next_plot_filename(base_pattern, folder):
     return os.path.join(folder, base_pattern.format(next_num))
 
 
-def load_and_plot_data(start_year: int = START_YEAR):
+def load_and_plot_data(start_year: int = START_YEAR) -> None:
     """Load AUM and Headcount data from CSV files and create plots.
 
     This is the main function that orchestrates the entire plotting process:
@@ -354,8 +357,6 @@ def load_and_plot_data(start_year: int = START_YEAR):
 
     # Get user selection for which firms to plot
     csv_files = get_user_firm_selection(all_csv_files)
-
-    # Count companies to determine output filename and plot selection
     company_count = len(csv_files)
 
     # Determine output filename based on number of firms
@@ -372,16 +373,14 @@ def load_and_plot_data(start_year: int = START_YEAR):
 
     if company_count > 1:
         # Only show non-combo charts for multiple firms
-        enabled_plots = [name for name in enabled_plots if name not in ["hc_combo", "raum_combo"]]
+        enabled_plots = [name for name in enabled_plots if name not in COMBO_PLOTS]
         print("Note: Only non-combo charts are shown when more than one firm is selected.")
     else:
-        # For a single firm, only show combo charts (ignore non-combo charts)
-        # SWAP ORDER: raum_combo first, then hc_combo
+        # For a single firm, only show combo charts
         enabled_plots = [name for name in ["raum_combo", "hc_combo"] if name in enabled_plots]
         print("Note: Only combo charts are shown when a single firm is selected.")
 
     num_plots = len(enabled_plots)
-
     if num_plots == 0:
         print("No plots selected in PLOT_SELECTION")
         return
@@ -396,10 +395,8 @@ def load_and_plot_data(start_year: int = START_YEAR):
 
     # Adjust margins based on number of plots
     if num_plots <= 2:
-        # More generous margins for fewer plots
         gridspec_kw = {"hspace": 0.485, "top": 0.90, "bottom": 0.12, "left": 0.12, "right": 0.92}
     else:
-        # Standard margins for more plots
         gridspec_kw = {"hspace": 0.515, "top": 0.94, "bottom": 0.06, "left": 0.12, "right": 0.92}
 
     # Create subplots with appropriate sizing
@@ -422,11 +419,7 @@ def load_and_plot_data(start_year: int = START_YEAR):
 
         # Read CSV file and prepare data
         df = pd.read_csv(file_path)
-
-        # Sort by fiscal year for consistent processing
         df = df.sort_values("Fiscal Year")
-
-        # Convert Fiscal Year to integer for proper numeric operations
         df["Fiscal Year"] = df["Fiscal Year"].astype(int)
 
         # Filter data to start from specified year
@@ -453,127 +446,89 @@ def load_and_plot_data(start_year: int = START_YEAR):
         avg_total_hc = calculate_annual_averages(total_hc, prev_total_hc)
         avg_ip_hc = calculate_annual_averages(ip_hc, prev_ip_hc)
 
-        # Define plot configurations with lambda functions to capture current scope variables
-        # This avoids issues with cell variable scope in loops
-        plot_configs = {
-            "raum_total": {
-                "data_func": lambda years=years, aum_values=aum_values: (years, aum_values),
-                "label_format": lambda y: f"${y/1e9:.1f}B" if y >= 1e9 else f"${y/1e6:.1f}M",
-                "title": "Total Regulatory AUM",
-                "formatter": lambda ax: ax.yaxis.set_major_formatter(
-                    FuncFormatter(lambda x, p: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M")
-                ),  # type: ignore
-            },
-            "raum_normalized": {
-                "data_func": lambda df=df, start_year=start_year: _get_aum_data(df, start_year),
-                "label_format": lambda y: f"{int(y):,}",
-                "title": "Normalized Regulatory AUM (First Year = 100)",
-                "formatter": None,
-            },
-            "total_hc": {
-                "data_func": lambda years=years, total_hc=total_hc: (years, total_hc),
-                "label_format": lambda y: f"{int(y):,}",
-                "title": "Form ADV: Total Headcount",
-                "formatter": None,
-            },
-            "ip_hc": {
-                "data_func": lambda years=years, ip_hc=ip_hc: (years, ip_hc),
-                "label_format": lambda y: f"{int(y):,}",
-                "title": "Form ADV: Investment Professional Headcount",
-                "formatter": None,
-            },
-            "ip_percentage": {
-                "data_func": lambda years=years, ip_hc=ip_hc, total_hc=total_hc: (
-                    years,
-                    (ip_hc / total_hc) * 100,
-                ),
-                "label_format": lambda y: f"{y:.1f}%",
-                "title": "Form ADV: Investment Professional Share",
-                "formatter": None,
-            },
-            "hc_combo": {
-                "data_func": lambda years=years, total_hc=total_hc, ip_hc=ip_hc: (
-                    years,
-                    total_hc,
-                    ip_hc,
-                    (ip_hc / total_hc) * 100,
-                ),
-                "label_format": lambda y: f"{int(y):,}",
-                "title": "Form ADV: Total Headcount",
-                "formatter": None,
-            },
-            "raum_combo": {
-                "data_func": lambda: get_raum_combo_data(years, aum_values, avg_aum, avg_ip_hc, avg_total_hc),
-                "label_format": lambda y: f"${y/1e9:.1f}B" if y >= 1e9 else f"${y/1e6:.1f}M",
-                "title": "Regulatory AUM",
-                "formatter": (
-                    lambda ax: ax.yaxis.set_major_formatter(
-                        FuncFormatter(lambda x, p: (f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M"))
-                    )
-                ),
-            },
-            "raum_per_total": {
-                "data_func": lambda years=years, avg_aum=avg_aum, avg_total_hc=avg_total_hc: (
-                    [y - 0.5 for y in years],
-                    avg_aum / avg_total_hc,
-                ),
-                "label_format": lambda y: f"${y/1e6:.1f}M",
-                "title": "Regulatory AUM per Employee (mid-year)",
-                "formatter": lambda ax: ax.yaxis.set_major_formatter(
-                    FuncFormatter(lambda x, p: f"${x/1e6:.0f}M")
-                ),  # type: ignore
-            },
-            "raum_per_ip": {
-                "data_func": lambda years=years, avg_aum=avg_aum, avg_ip_hc=avg_ip_hc: (
-                    [y - 0.5 for y in years],
-                    avg_aum / avg_ip_hc,
-                ),
-                "label_format": lambda y: f"${y/1e6:.1f}M",
-                "title": "Regulatory AUM per Investment Professional (mid-year)",
-                "formatter": lambda ax: ax.yaxis.set_major_formatter(
-                    FuncFormatter(lambda x, p: f"${x/1e6:.0f}M")
-                ),  # type: ignore
-            },
-        }
-
         # Plot data for each enabled plot type
         for plot_name in enabled_plots:
-            config = plot_configs[plot_name]
             ax = plot_axes[plot_name]
 
-            # Handle special cases that require custom plotting logic
-            if plot_name == "raum_normalized":
-                plot_data = config["data_func"]()  # type: ignore
-                if plot_data is None:  # No AUM data available
+            # Handle different plot types
+            if plot_name == "raum_total":
+                plot_years, plot_values = years, aum_values
+                ax.plot(
+                    plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
+                )
+                add_data_labels(
+                    ax, plot_years, plot_values, lambda y: f"${y/1e9:.1f}B" if y >= 1e9 else f"${y/1e6:.1f}M"
+                )
+                if company_count == 1:
+                    add_yoy_growth(ax, plot_years, plot_values)
+                title = f"{firm_name}: Total Regulatory AUM" if company_count == 1 else "Total Regulatory AUM"
+                ax.set_title(title, fontsize=14, pad=15)
+                ax.yaxis.set_major_formatter(
+                    FuncFormatter(lambda x, p: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M")
+                )
+
+            elif plot_name == "raum_normalized":
+                plot_data = _get_aum_data(df, start_year)
+                if plot_data is None:
                     continue
                 plot_years, plot_values = plot_data
                 ax.plot(
                     plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
                 )
-
-                # Add data labels
-                add_data_labels(ax, plot_years, plot_values, config["label_format"])
-
-                # Add Y/Y growth for single company charts
+                add_data_labels(ax, plot_years, plot_values, lambda y: f"{int(y):,}")
                 if company_count == 1:
                     add_yoy_growth(ax, plot_years, plot_values)
+                title = (
+                    f"{firm_name}: Normalized Regulatory AUM (First Year = 100)"
+                    if company_count == 1
+                    else "Normalized Regulatory AUM (First Year = 100)"
+                )
+                ax.set_title(title, fontsize=14, pad=15)
 
-                # Set custom title: only include firm name if single company
-                title = f"{firm_name} {config['title']}" if company_count == 1 else config["title"]
+            elif plot_name == "total_hc":
+                plot_years, plot_values = years, total_hc
+                ax.plot(
+                    plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
+                )
+                add_data_labels(ax, plot_years, plot_values, lambda y: f"{int(y):,}")
+                if company_count == 1:
+                    add_yoy_growth(ax, plot_years, plot_values)
+                title = f"{firm_name}: Total Headcount" if company_count == 1 else "Total Headcount"
+                ax.set_title(title, fontsize=14, pad=15)
+
+            elif plot_name == "ip_hc":
+                plot_years, plot_values = years, ip_hc
+                ax.plot(
+                    plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
+                )
+                add_data_labels(ax, plot_years, plot_values, lambda y: f"{int(y):,}")
+                if company_count == 1:
+                    add_yoy_growth(ax, plot_years, plot_values)
+                title = (
+                    f"{firm_name}: Investment Professional Headcount"
+                    if company_count == 1
+                    else "Investment Professional Headcount"
+                )
+                ax.set_title(title, fontsize=14, pad=15)
+
+            elif plot_name == "ip_percentage":
+                plot_years, plot_values = years, (ip_hc / total_hc) * 100
+                ax.plot(
+                    plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
+                )
+                add_data_labels(ax, plot_years, plot_values, lambda y: f"{y:.1f}%")
+                if company_count == 1:
+                    add_yoy_growth(ax, plot_years, plot_values)
+                title = (
+                    f"{firm_name}: Investment Professional Share"
+                    if company_count == 1
+                    else "Investment Professional Share"
+                )
                 ax.set_title(title, fontsize=14, pad=15)
 
             elif plot_name == "hc_combo":
                 # Special handling for combined headcount chart with dual y-axes
-                plot_data = config["data_func"]()  # type: ignore
-                if plot_data is None:
-                    continue
-                plot_years, total_hc, ip_hc, ip_percentage = plot_data
-
-                # Define configurations for the combo chart
-                primary_config = {
-                    "label": "Total HC",
-                    "label_format": lambda y: f"{int(y):,}",
-                }
+                primary_config = {"label": "Total HC", "label_format": lambda y: f"{int(y):,}"}
                 secondary_config = {
                     "label": "IP HC (%)",
                     "label_format": lambda y: f"{y:.1f}%",
@@ -582,15 +537,15 @@ def load_and_plot_data(start_year: int = START_YEAR):
 
                 # Plot the combo chart with dual y-axes
                 ax2, line1, line2 = plot_combo_chart(
-                    ax, plot_years, total_hc, ip_percentage, primary_config, secondary_config
+                    ax, years, total_hc, (ip_hc / total_hc) * 100, primary_config, secondary_config
                 )
 
                 # Add data labels for IP HC (%) series (secondary axis)
-                add_data_labels(ax2, plot_years, ip_percentage, lambda y: f"{y:.1f}%")
+                add_data_labels(ax2, years, (ip_hc / total_hc) * 100, lambda y: f"{y:.1f}%")
 
                 # Add Investment Professional Headcount on primary axis
                 line3 = ax.plot(
-                    plot_years,
+                    years,
                     ip_hc,
                     marker="s",
                     label="IP HC",
@@ -599,12 +554,12 @@ def load_and_plot_data(start_year: int = START_YEAR):
                     markersize=6,
                     zorder=5,
                 )
-                add_data_labels(ax, plot_years, ip_hc, lambda y: f"{int(y):,}")
+                add_data_labels(ax, years, ip_hc, lambda y: f"{int(y):,}")
 
                 # Add year-over-year growth annotations for headcount metrics
                 if company_count == 1:
-                    add_yoy_growth(ax, plot_years, total_hc)
-                    add_yoy_growth(ax, plot_years, ip_hc)
+                    add_yoy_growth(ax, years, total_hc)
+                    add_yoy_growth(ax, years, ip_hc)
 
                 # Create legend with all three series in specified order
                 lines = [line1, line3[0], line2]
@@ -619,30 +574,21 @@ def load_and_plot_data(start_year: int = START_YEAR):
                     borderaxespad=0.0,
                     frameon=False,
                 )
-                # Set custom title: only include firm name if single company
-                title = "Form ADV Headcount (Total vs. Investment Professionals)"
+
+                title = "Headcount (Total vs. Investment Professionals)"
                 if company_count == 1:
-                    title = f"{firm_name} {title}"
+                    title = f"{firm_name}: {title}"
                 ax.set_title(title, fontsize=14, pad=21)
 
             elif plot_name == "raum_combo":
                 # Special handling for combined RAUM chart with dual y-axes
-                plot_data = config["data_func"]()  # type: ignore
-                if plot_data is None:
-                    continue
-                plot_years, aum_values, raum_per_ip_data, raum_per_total_data = plot_data
-                raum_per_ip, mid_years = raum_per_ip_data
-                raum_per_total, _ = raum_per_total_data
+                mid_years = [y - 0.5 for y in years]
+                raum_per_ip = avg_aum / avg_ip_hc
+                raum_per_total = avg_aum / avg_total_hc
 
-                # Define configurations for the combo chart
                 primary_config = {
                     "label": "RAUM",
-                    "label_format": config["label_format"],
-                }
-                secondary_config_total = {
-                    "label": "RAUM/Employee (mid-year)",
-                    "label_format": lambda y: f"{y/1e6:.1f}M",
-                    "color": "orange",
+                    "label_format": lambda y: f"${y/1e9:.1f}B" if y >= 1e9 else f"${y/1e6:.1f}M",
                 }
                 secondary_config_ip = {
                     "label": "RAUM/IP (mid-year)",
@@ -652,7 +598,7 @@ def load_and_plot_data(start_year: int = START_YEAR):
 
                 # Plot the combo chart with dual y-axes (RAUM and RAUM/IP)
                 ax2, line1, line2 = plot_combo_chart(
-                    ax, plot_years, aum_values, raum_per_ip, primary_config, secondary_config_ip, mid_years
+                    ax, years, aum_values, raum_per_ip, primary_config, secondary_config_ip, mid_years
                 )
 
                 # Plot RAUM/Employee on secondary axis with distinct marker and color
@@ -660,9 +606,9 @@ def load_and_plot_data(start_year: int = START_YEAR):
                     mid_years,
                     raum_per_total,
                     marker="^",
-                    label=secondary_config_total["label"],
+                    label="RAUM/Employee (mid-year)",
                     linewidth=2,
-                    color=secondary_config_total["color"],
+                    color="orange",
                     markersize=6,
                     linestyle="-",
                     zorder=5,
@@ -677,13 +623,13 @@ def load_and_plot_data(start_year: int = START_YEAR):
                 if valid_data:
                     ax2.set_ylim(min(valid_data) * 0.9, max(valid_data) * 1.1)
 
-                # Add data labels for each secondary series only here (not in plot_combo_chart)
+                # Add data labels for each secondary series
                 add_data_labels(ax2, mid_years, raum_per_ip, secondary_config_ip["label_format"])
-                add_data_labels(ax2, mid_years, raum_per_total, secondary_config_total["label_format"])
+                add_data_labels(ax2, mid_years, raum_per_total, lambda y: f"{y/1e6:.1f}M")
 
                 # Add year-over-year growth annotations for all metrics
                 if company_count == 1:
-                    add_yoy_growth(ax, plot_years, aum_values)
+                    add_yoy_growth(ax, years, aum_values)
                     add_yoy_growth(ax2, mid_years, raum_per_ip)
                     add_yoy_growth(ax2, mid_years, raum_per_total)
 
@@ -700,31 +646,45 @@ def load_and_plot_data(start_year: int = START_YEAR):
                     borderaxespad=0.0,
                     frameon=False,
                 )
-                # Set custom title: only include firm name if single company
-                prefix = f"{firm_name} " if company_count == 1 else ""
+
+                prefix = f"{firm_name}: " if company_count == 1 else ""
                 ax.set_title(
                     f"{prefix}Regulatory AUM (Total, per Employee, per Investment Professional)",
                     fontsize=14,
                     pad=21,
                 )
 
-            else:
-                # Standard plotting for other charts
-                plot_years, plot_values = config["data_func"]()  # type: ignore
+            elif plot_name == "raum_per_total":
+                plot_years, plot_values = [y - 0.5 for y in years], avg_aum / avg_total_hc
                 ax.plot(
                     plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
                 )
-
-                # Add data labels
-                add_data_labels(ax, plot_years, plot_values, config["label_format"])
-
-                # Add Y/Y growth for single company charts
+                add_data_labels(ax, plot_years, plot_values, lambda y: f"${y/1e6:.1f}M")
                 if company_count == 1:
                     add_yoy_growth(ax, plot_years, plot_values)
-
-                # Set custom title: include firm name if single company
-                title = f"{firm_name} {config['title']}" if company_count == 1 else config["title"]
+                title = (
+                    f"{firm_name}: Regulatory AUM per Employee (mid-year)"
+                    if company_count == 1
+                    else "Regulatory AUM per Employee (mid-year)"
+                )
                 ax.set_title(title, fontsize=14, pad=15)
+                ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"${x/1e6:.0f}M"))
+
+            elif plot_name == "raum_per_ip":
+                plot_years, plot_values = [y - 0.5 for y in years], avg_aum / avg_ip_hc
+                ax.plot(
+                    plot_years, plot_values, marker="o", label=firm_name, linewidth=2, markersize=6, zorder=5
+                )
+                add_data_labels(ax, plot_years, plot_values, lambda y: f"${y/1e6:.1f}M")
+                if company_count == 1:
+                    add_yoy_growth(ax, plot_years, plot_values)
+                title = (
+                    f"{firm_name}: Regulatory AUM per Investment Professional (mid-year)"
+                    if company_count == 1
+                    else "Regulatory AUM per Investment Professional (mid-year)"
+                )
+                ax.set_title(title, fontsize=14, pad=15)
+                ax.yaxis.set_major_formatter(FuncFormatter(lambda x, p: f"${x/1e6:.0f}M"))
 
     # Handle case where no data was found
     if not all_years:
@@ -734,19 +694,17 @@ def load_and_plot_data(start_year: int = START_YEAR):
     # Configure all axes with consistent formatting
     years_range = range(start_year, max(all_years) + 1)
     for plot_name, ax in plot_axes.items():
-        config = plot_configs[plot_name]
-
         # Set common properties for all plots
         ax.set_xticks(years_range)
         ax.tick_params(axis="x", rotation=45)
         ax.tick_params(axis="y", labelleft=False, left=False)
         ax.grid(True, linestyle="--", alpha=0.7)
         ax.set_axisbelow(True)
+
         # Only set legend for non-combo charts (combo charts handle their own legends)
-        if plot_name not in ["hc_combo", "raum_combo"]:
+        if plot_name not in COMBO_PLOTS:
             handles, labels = ax.get_legend_handles_labels()
             if handles:
-                # Display legend above chart area but below title
                 ax.legend(
                     fontsize=10,
                     loc="lower center",
@@ -755,18 +713,24 @@ def load_and_plot_data(start_year: int = START_YEAR):
                     borderaxespad=0.0,
                     frameon=False,
                 )
-                # Move title up to make space for legend and increase spacing
                 ax.set_title(ax.get_title(), fontsize=14, pad=21)
+
         ax.set_xlim(start_year - 0.2, max(all_years) + 0.2)
 
         # Set titles and labels
-        # Only set title here if it hasn't been set yet (for multi-company charts)
         if not ax.get_title():
-            ax.set_title(config["title"], fontsize=14, pad=15)
-
-        # Apply custom formatter if specified
-        if config["formatter"]:
-            config["formatter"](ax)  # type: ignore
+            # Set default titles for multi-company charts
+            default_titles = {
+                "raum_total": "Total Regulatory AUM",
+                "raum_normalized": "Normalized Regulatory AUM (First Year = 100)",
+                "total_hc": "Form ADV: Total Headcount",
+                "ip_hc": "Form ADV: Investment Professional Headcount",
+                "ip_percentage": "Form ADV: Investment Professional Share",
+                "raum_per_total": "Regulatory AUM per Employee (mid-year)",
+                "raum_per_ip": "Regulatory AUM per Investment Professional (mid-year)",
+            }
+            if plot_name in default_titles:
+                ax.set_title(default_titles[plot_name], fontsize=14, pad=15)
 
     # Save the plot with high resolution and open in default OS viewer
     plt.savefig(output_file, dpi=300, bbox_inches="tight")
@@ -781,7 +745,7 @@ def load_and_plot_data(start_year: int = START_YEAR):
         subprocess.run(["xdg-open", output_file], check=False)
 
 
-def _get_aum_data(df, start_year):
+def _get_aum_data(df: pd.DataFrame, start_year: int) -> Optional[Tuple[pd.Series, pd.Series]]:
     """Helper function to get AUM data for normalized plot.
 
     This function calculates normalized AUM values where the first non-zero
@@ -809,27 +773,6 @@ def _get_aum_data(df, start_year):
     aum_values = (df.loc[aum_mask, "5F2a"] / base_aum) * 100
 
     return aum_years, aum_values
-
-
-def get_raum_combo_data(years, aum_values, avg_aum, avg_ip_hc, avg_total_hc):
-    """Helper function for raum_combo plot data.
-
-    This function prepares data for the combined RAUM chart, calculating
-    total AUM, AUM per investment professional, and AUM per employee.
-
-    Args:
-        years: Years data
-        aum_values: Total AUM values
-        avg_aum: Average AUM values
-        avg_ip_hc: Average Investment Professional Headcount values
-        avg_total_hc: Average Total Headcount values
-
-    Returns:
-        Tuple of (years, aum_values, raum_per_ip, raum_per_total)
-    """
-    # Show AUM at year points and per-employee metrics at mid-year points
-    mid_years = [y - 0.5 for y in years]
-    return years, aum_values, (avg_aum / avg_ip_hc, mid_years), (avg_aum / avg_total_hc, mid_years)
 
 
 if __name__ == "__main__":
