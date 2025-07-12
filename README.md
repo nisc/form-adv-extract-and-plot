@@ -50,15 +50,15 @@ This tool processes historical SEC Form ADV Part 1 filings to extract key metric
 ### Single Firm Analysis
 When analyzing a single firm, combo charts are generated showing multiple metrics on the same plot:
 
-<a href="docs/adv_plot_single.jpg" target="_blank">
-<img src="docs/adv_plot_single.jpg" alt="Single Firm Analysis" width="800" style="cursor: pointer;" title="Click to view full size">
+<a href="output/plots/samples/adv_plot_single.jpg" target="_blank">
+<img src="output/plots/samples/adv_plot_single.jpg" alt="Single Firm Analysis" width="800" style="cursor: pointer;" title="Click to view full size">
 </a>
 
 ### Multi-Firm Comparison
 When comparing multiple firms, individual charts are generated for each metric:
 
-<a href="docs/adv_plot_multi.jpg" target="_blank">
-<img src="docs/adv_plot_multi.jpg" alt="Multi-Firm Comparison" width="800" style="cursor: pointer;" title="Click to view full size">
+<a href="output/plots/samples/adv_plot_multi.jpg" target="_blank">
+<img src="output/plots/samples/adv_plot_multi.jpg" alt="Multi-Firm Comparison" width="800" style="cursor: pointer;" title="Click to view full size">
 </a>
 
 ## Project Structure
