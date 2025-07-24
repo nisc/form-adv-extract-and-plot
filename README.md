@@ -80,7 +80,6 @@ form-adv-extract-and-plot/
 ├── output/                        # Generated output files
 │   ├── csvs/                      # Extracted data files
 │   └── plots/                     # Generated plots
-├── docs/                          # Documentation and examples
 ├── adv_extract_settings.yaml      # Main configuration
 ├── adv_extract_firms.yaml         # Firm definitions and default values
 ├── requirements.txt               # Python dependencies
@@ -99,54 +98,31 @@ form-adv-extract-and-plot/
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/nisc/form-adv-extract-and-plot.git
    cd form-adv-extract-and-plot
    ```
 
-2. **Create virtual environment:**
+2. **Create and activate a virtual environment:**
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+   > **Note:** Dependency installation is handled automatically by `run.sh`.
 
 ### Usage
 
 1. **Configure firms:** Edit `adv_extract_firms.yaml` to define the firms you want to analyze
 
-2. **Download and extract data:**
-
-**Option 1: Run the complete pipeline (Recommended)**
-```bash
-./run.sh
-```
-This bash script automatically:
-- Checks prerequisites and dependencies
-- Downloads SEC filing data (if not present)
-- Runs data extraction
-- Generates plots
-- Provides status updates throughout the process
-
-**Option 2: Run individual steps manually**
-
+2. **Run the complete pipeline (Recommended):**
    ```bash
-   python src/adv_extract.py
+   ./run.sh
    ```
-   > **Note:** The extractor will automatically download SEC filing data if no CSV files are found in the `input/` directory.
-
-3. **Generate plots:**
-   ```bash
-   python src/adv_plot.py
-   ```
-
-4. **Test performance (optional):**
-   ```bash
-   python src/adv_extract_perftest.py
-   ```
+   This script will:
+   - Check prerequisites and dependencies
+   - Download SEC filing data (if not present)
+   - Run data extraction
+   - Generate plots
+   - Provide status updates throughout the process
 
 ## Output Files
 
